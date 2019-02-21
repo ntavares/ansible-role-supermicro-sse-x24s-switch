@@ -46,8 +46,7 @@ Example Playbook
 
 The following playbook configures hosts in the `supermicro-switches`
 group.  It assumes host variables for each switch holding the host, username
-and passwords.  It applies global configuration for system information and configures log forwarding
-ethernet interfaces as switchports.
+and passwords.  It applies global configuration for system information and configures log forwarding.
 
     ---
     - name: Ensure SuperMicro switches are configured
