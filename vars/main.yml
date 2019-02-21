@@ -1,0 +1,8 @@
+---
+sm_ssex24s_main_prompt: "{{ inventory_hostname }}#[\\s]?"
+sm_ssex24s_config_prompt: "{{ inventory_hostname }}\\(config(-vlan)?\\)#[\\s]?"
+sm_ssex24s_interface_prompt: "{{ inventory_hostname }}\\(config-if.*\\)#[\\s]?"
+sm_ssex24s_enable_prompt: "{{ inventory_hostname }}>[\\s]?"
+
+sm_ssex24s_auth_responses:
+  "(?i).* password:": "{{ sm_ssex24s_switch_provider.auth_pass }}"

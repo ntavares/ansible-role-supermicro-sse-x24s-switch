@@ -1,0 +1,85 @@
+---
+# Need to use pip since the CentOS provided package is too old for Ansible.
+- name: Ensure the pexpect Python package is installed
+  local_action:
+    module: pip
+    name: pexpect
+    state: present
+  become: true
+
+- name: Ensure global switch configuration is applied
+  local_action:
+    module: expect
+    command: ssh {{ ansible_ssh_common_args | default }} {{ sm_ssex24s_switch_provider.username }}@{{ sm_ssex24s_switch_provider.host }}
+    responses: >-
+      {{ sm_ssex24s_auth_responses |
+         combine(enable_responses) |
+         combine(main_responses) |
+         combine(config_responses) }}
+  register: result
+  failed_when: >-
+    result.get('rc') != 255 or
+    '% Invalid Command' in result.stdout_lines or
+    '% Incomplete command.' in result.stdout_lines or
+    "Invalid input detected at '^' marker. Command syntax not valid." in result.stdout_lines or
+    'Disconnected from UNKNOWN port 65535' not in result.stdout_lines[-1]
+  vars:
+    enable_responses: "{{ {sm_ssex24s_enable_prompt: ['enable', 'exit']} }}"
+    main_responses: "{{ {sm_ssex24s_main_prompt: ['configure terminal', 'exit']} }}"
+    config_responses: "{{ {sm_ssex24s_config_prompt: sm_ssex24s_switch_config + ['exit']} }}"
+
+- name: Ensure switch interface configuration is applied
+  local_action:
+    module: expect
+    command: ssh {{ ansible_ssh_common_args | default }} {{ sm_ssex24s_switch_provider.username }}@{{ sm_ssex24s_switch_provider.host }}
+    responses: >-
+      {{ sm_ssex24s_auth_responses |
+         combine(enable_responses) |
+         combine(main_responses) |
+         combine(config_responses) |
+         combine(interface_responses) }}
+  register: result
+  failed_when: >-
+    result.get('rc') != 255 or
+    '% Invalid Command' in result.stdout_lines or
+    '% Incomplete command.' in result.stdout_lines or
+    "Invalid input detected at '^' marker. Command syntax not valid." in result.stdout_lines or
+    'Disconnected from UNKNOWN port 65535' not in result.stdout_lines[-1]
+  with_dict: "{{ sm_ssex24s_switch_interface_config }}"
+  vars:
+    enable_responses: "{{ {sm_ssex24s_enable_prompt: ['enable', 'exit']} }}"
+    main_responses: "{{ {sm_ssex24s_main_prompt: ['configure terminal', 'exit']} }}"
+    config_responses: "{{ {sm_ssex24s_config_prompt: ['interface ' ~ item.key, 'exit']} }}"
+    # Long config lines seem to confuse expect, so we add two exits.
+    interface_responses: >-
+      {{ {sm_ssex24s_interface_prompt:
+          (['description ' ~ item.value.description] if 'description' in item.value else []) +
+          (['name ' ~ item.value.name] if 'name' in item.value else []) +
+          item.value.config | default([]) +
+          ['exit', 'exit']} }}
+  loop_control:
+    label:
+      interface: "{{ item.key }}"
+      description:  "{{ item.value.description | default('<none>') }}"
+      config: "{{ item.value.config | default([]) }}"
+
+- name: Save config
+  when: sm_ssex24s_save_config_on_exit
+  local_action:
+    module: expect
+    command: ssh {{ ansible_ssh_common_args | default }} {{ sm_ssex24s_switch_provider.username }}@{{ sm_ssex24s_switch_provider.host }}
+    responses: >-
+      {{ sm_ssex24s_auth_responses |
+         combine(enable_responses) |
+         combine(main_responses) }}
+  register: result
+  failed_when: >-
+    result.get('rc') != 255 or
+    '[OK]' not in result.stdout_lines or
+    '% Invalid Command' in result.stdout_lines or
+    '% Incomplete command.' in result.stdout_lines or
+    "Invalid input detected at '^' marker. Command syntax not valid." in result.stdout_lines or
+    'Disconnected from UNKNOWN port 65535' not in result.stdout_lines[-1]
+  vars:
+    enable_responses: "{{ {sm_ssex24s_enable_prompt: ['enable', 'exit']} }}"
+    main_responses: "{{ {sm_ssex24s_main_prompt: ['write startup-config', 'exit']} }}"

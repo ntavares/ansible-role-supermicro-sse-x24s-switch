@@ -1,0 +1,5 @@
+---
+- hosts: switches
+  connection: local
+  roles:
+    - supermicro-sse-x24s-switch
